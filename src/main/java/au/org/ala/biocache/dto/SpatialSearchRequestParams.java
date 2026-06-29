@@ -66,6 +66,9 @@ public class SpatialSearchRequestParams {
     @Parameter(name="fprefix", description = "The prefix to limit facet values")
     protected String fprefix ="";
 
+    @Parameter(name="fcontains", description = "Limits facet values to those containing this substring")
+    protected String fcontains ="";
+
     @Parameter(name="start", description = "Paging start index")
     protected Integer start;
 

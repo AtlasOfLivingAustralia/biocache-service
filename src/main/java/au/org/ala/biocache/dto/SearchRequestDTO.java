@@ -73,6 +73,8 @@ public class SearchRequestDTO {
     protected Integer foffset = 0;
     /** The prefix to limit facet values*/
     protected String fprefix = "";
+    /** Limits facet values to those containing this substring */
+    protected String fcontains = "";
     protected Integer pageSize = 10;
     protected String sort = "";
     protected String dir = "asc";
@@ -154,6 +156,8 @@ public class SearchRequestDTO {
             req.append("&foffset=").append(foffset);
         if(!"".equals(fprefix))
             req.append("&fprefix=").append(fprefix);
+        if(!"".equals(fcontains))
+            req.append("&fcontains=").append(fcontains);
 
         if (!Strings.isNullOrEmpty(qualityProfile)) {
             req.append("&qualityProfile=").append(conditionalEncode(qualityProfile, encodeParams));
@@ -501,6 +505,18 @@ public class SearchRequestDTO {
 	public void setFprefix(String fprefix) {
 		this.fprefix = fprefix;
 	}
+	/**
+	 * @return the fcontains
+	 */
+	public String getFcontains() {
+		return fcontains;
+	}
+	/**
+	 * @param fcontains the fcontains to set
+	 */
+	public void setFcontains(String fcontains) {
+		this.fcontains = fcontains;
+	}
 
     public Boolean getIncludeMultivalues() {
         return includeMultivalues;
@@ -568,6 +584,7 @@ public class SearchRequestDTO {
                 Objects.equals(fsort, that.fsort) &&
                 Objects.equals(foffset, that.foffset) &&
                 Objects.equals(fprefix, that.fprefix) &&
+                Objects.equals(fcontains, that.fcontains) &&
                 Objects.equals(pageSize, that.pageSize) &&
                 Objects.equals(sort, that.sort) &&
                 Objects.equals(dir, that.dir) &&
@@ -580,7 +597,7 @@ public class SearchRequestDTO {
 
     @Override
     public int hashCode() {
-        int result = Objects.hash(formattedQuery, q, fl, start, facetsMax, flimit, fsort, foffset, fprefix, pageSize, sort, dir, displayString, qc, facet, qualityProfile, disableAllQualityFilters, disableQualityFilter);
+        int result = Objects.hash(formattedQuery, q, fl, start, facetsMax, flimit, fsort, foffset, fprefix, fcontains, pageSize, sort, dir, displayString, qc, facet, qualityProfile, disableAllQualityFilters, disableQualityFilter);
         result = 31 * result + Arrays.hashCode(fq);
         result = 31 * result + Arrays.hashCode(facets);
         return result;
