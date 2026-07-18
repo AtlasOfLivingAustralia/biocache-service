@@ -70,8 +70,6 @@ import java.io.*;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
 import java.util.List;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -1797,12 +1795,7 @@ public class WMSController extends AbstractSecureController {
             transformBBox(transformFrom4326, extents, bbox4326, bboxSRS);
             bboxString = bboxSRS[0] + "," + bboxSRS[1] + "," + bboxSRS[2] + "," + bboxSRS[3];
         }
-        
-       // Force standard decimal notation to prevent scientific notation (e.g. E7) from breaking upstream WMS parsers.
-       // Uses English locale to guarantee '.' as the decimal separator across various system environments.
-        java.text.DecimalFormat df = new java.text.DecimalFormat("0.00000000", java.text.DecimalFormatSymbols.getInstance(java.util.Locale.ENGLISH));
-        bboxString = df.format(bboxSRS[0]) + "," + df.format(bboxSRS[1]) + "," + df.format(bboxSRS[2]) + "," + df.format(bboxSRS[3]);
-        
+               
         int width = (int) ((dpi / 25.4) * widthMm);
         int height = (int) Math.round(width * ((bboxSRS[3] - bboxSRS[1]) / (bboxSRS[2] - bboxSRS[0])));
 
