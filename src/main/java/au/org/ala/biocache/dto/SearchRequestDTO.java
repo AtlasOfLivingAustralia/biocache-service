@@ -137,7 +137,7 @@ public class SearchRequestDTO {
         req.append("&pageSize=").append(pageSize);
         req.append("&sort=").append(sort);
         req.append("&dir=").append(dir);
-        req.append("&qc=").append(qc);
+        req.append("&qc=").append(conditionalEncode(qc, encodeParams));
         if (facets != null && facets.length > 0 && isFacet) {
             for (String f : facets) {
                 req.append("&facets=").append(conditionalEncode(f, encodeParams));
