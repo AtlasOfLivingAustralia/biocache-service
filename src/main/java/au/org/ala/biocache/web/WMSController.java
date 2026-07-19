@@ -1838,10 +1838,7 @@ public class WMSController extends AbstractSecureController {
 
         // add query parameters
         speciesAddress += serialisedQueryParameters;
-        
-        // Sanitize literal spaces
-        speciesAddress = speciesAddress.replace(" ", "%20");
-        
+               
         URL speciesURL = new URL(speciesAddress);
         BufferedImage speciesImage = ImageIO.read(speciesURL);
 
