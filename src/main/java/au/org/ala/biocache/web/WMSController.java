@@ -1788,14 +1788,14 @@ public class WMSController extends AbstractSecureController {
         CoordinateOperation transformTo4326 = new DefaultCoordinateOperationFactory().createOperation(sourceCRS, targetCRS);
         CoordinateOperation transformFrom4326 = new DefaultCoordinateOperationFactory().createOperation(targetCRS, sourceCRS);
         double[] bbox4326 = new double[4];     // extents in EPSG:4326
-        double[] bboxSRS = new double[4];      //extents in target SRS
+        double[] bboxSRS = new double[4];      // extents in target SRS
         if (bboxString != null) {
             transformBBox(transformTo4326, bboxString, bboxSRS, bbox4326);
         } else {
             transformBBox(transformFrom4326, extents, bbox4326, bboxSRS);
             bboxString = bboxSRS[0] + "," + bboxSRS[1] + "," + bboxSRS[2] + "," + bboxSRS[3];
         }
-
+               
         int width = (int) ((dpi / 25.4) * widthMm);
         int height = (int) Math.round(width * ((bboxSRS[3] - bboxSRS[1]) / (bboxSRS[2] - bboxSRS[0])));
 
@@ -1838,7 +1838,7 @@ public class WMSController extends AbstractSecureController {
 
         // add query parameters
         speciesAddress += serialisedQueryParameters;
-
+               
         URL speciesURL = new URL(speciesAddress);
         BufferedImage speciesImage = ImageIO.read(speciesURL);
 
