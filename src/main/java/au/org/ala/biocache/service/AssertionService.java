@@ -193,19 +193,15 @@ public class AssertionService {
 
     // this method merge new assertions with existing assertions
     // 1. for each type of normal assertion, 1 user can only have 1 on a record.
-    //    so if user already created a 'Geospatial issue' assertion and he now creates a new one, new one will overwrite old one
+    //    so if a user already created a 'Geospatial issue' assertion and he now creates a new one, new one will overwrite old one
     //    normal assertion is unique by recordId + userId + code
-    // 2. for verified assertion (whose code == 50000), it's uniquely related to an assertion.
-    //    so if there's already a verification for an assertion, a newly created verification on same assertion will overwrite existing one
-    //    verification is unique per assertion
+    //
+    // 2. Historically, for verified assertion (whose code == 50000), it is uniquely related to an assertion.
+    //    After version 3.10.0, for verified assertion (whose code == 50000), an assertion can have multiple verifications.
     private UserAssertions getCombinedAssertions(UserAssertions existingAssertions, UserAssertions newAssertions) {
         // un-verified assertions grouped by recordId + code + userId
         Map<Integer, QualityAssertion> existingAssertionsMap =
                 existingAssertions.stream().filter(qa -> !qa.getCode().equals(AssertionCodes.VERIFIED.getCode())).collect(Collectors.toMap(qa -> Objects.hash(qa.getReferenceRowKey(), qa.getCode(), qa.getUserId()), qa -> qa));
-
-        // verifications grouped by related uuid
-        Map<String, QualityAssertion> existingVerificationMap =
-                existingAssertions.stream().filter(qa -> qa.getCode().equals(AssertionCodes.VERIFIED.getCode())).collect(Collectors.toMap(QualityAssertion::getRelatedUuid, qa -> qa));
 
         UserAssertions combined = new UserAssertions();
 
@@ -226,22 +222,15 @@ public class AssertionService {
                 existingAssertionsMap.put(hash, qa);
             }
         }
-
         // for those new assertions with duplicate keys
         combined.addAll(existingAssertionsMap.values());
 
-        for (QualityAssertion verification : newVerificationList) {
-            String relatedUuid = verification.getRelatedUuid();
-            if (!existingVerificationMap.containsKey(relatedUuid)) {
-                // for those verifications on new assertions
-                combined.add(verification);
-            } else {
-                existingVerificationMap.put(relatedUuid, verification);
-            }
-        }
+        // processing new verifications - will not overwrite existing verifications, just add to the list
+        List<QualityAssertion> existingVerifications =
+                existingAssertions.stream().filter(qa -> qa.getCode().equals(AssertionCodes.VERIFIED.getCode())).collect(Collectors.toList());
 
-        // for those verifications overwriting previous ones
-        combined.addAll(existingVerificationMap.values());
+        combined.addAll(existingVerifications);
+        combined.addAll(newVerificationList);
 
         return combined;
     }
