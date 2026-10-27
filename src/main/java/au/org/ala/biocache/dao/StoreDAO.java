@@ -14,5 +14,13 @@ public interface StoreDAO {
 
     <T> void put(String key, T data) throws IOException;
 
+    /**
+     * Put with an optional row TTL in seconds. A ttlSeconds of null means the
+     * data never expires.
+     */
+    default <T> void put(String key, T data, Integer ttlSeconds) throws IOException {
+        put(key, data);
+    }
+
     <T> Boolean delete(Class<T> dataClass, String key) throws IOException;
 }

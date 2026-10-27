@@ -1,6 +1,7 @@
 package au.org.ala.biocache.util;
 
 import au.org.ala.biocache.dao.QidCacheDAO;
+import au.org.ala.biocache.dao.StoreDAO;
 import au.org.ala.biocache.dto.Qid;
 import au.org.ala.biocache.util.solr.FieldMappingUtil;
 import org.junit.Before;
@@ -33,6 +34,9 @@ public class QidCacheIT {
 
     @Autowired
     QidCacheDAO qidCacheDao;
+
+    @Autowired
+    StoreDAO storeDao;
 
     @Autowired
     FieldMappingUtil fieldMappingUtil;
@@ -160,6 +164,45 @@ public class QidCacheIT {
 //            //compare getpco and putpco
 //            assertQidsEqual(getqid, putqid);
 //        }
+    }
+
+    /**
+     * test qid maxage TTL:
+     * 1. a qid created with a maxage stops resolving (QidMissingException) after expiry
+     * 2. its row is deleted from the database by the cassandra TTL
+     * 3. a qid created with maxage = -1 never expires
+     */
+    @Test
+    public void testQidMaxAgeTtl() throws Exception {
+
+        double[] defaultbbox = {1, 2, 3, 4};
+
+        String ttlKey = qidCacheDao.put("ttl q", "displayString", "wkt", defaultbbox, null, 1000L, null);
+        String foreverKey = qidCacheDao.put("forever q", "displayString", "wkt", defaultbbox, null, -1L, null);
+
+        //before expiry both qids resolve
+        assertNotNull(qidCacheDao.get(ttlKey));
+        assertNotNull(qidCacheDao.get(foreverKey));
+
+        Thread.sleep(2100); //cassandra TTL granularity is 1 second
+        qidCacheDao.clear(); //drop in-memory copies to force db access
+
+        //expired qid no longer resolves
+        boolean exception = false;
+        try {
+            qidCacheDao.get(ttlKey);
+            assertTrue(false);
+        } catch (QidMissingException e) {
+            exception = true;
+        }
+        assertTrue(exception);
+
+        //its row is gone from the database: the cassandra TTL did the deletion
+        assertFalse(storeDao.get(Qid.class, ttlKey).isPresent());
+
+        //non-expiring qid is unaffected
+        assertNotNull(qidCacheDao.get(foreverKey));
+        assertTrue(storeDao.get(Qid.class, foreverKey).isPresent());
     }
 
     /**
