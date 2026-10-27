@@ -231,6 +231,15 @@ public class OccurrenceController extends AbstractSecureController {
     @Value("${page.depth.max:5000}")
     public Integer pageDepthMax;
 
+    /**
+     * Lifetime in ms for qids created internally by /occurrences/batchSearch.
+     * The qid is consumed immediately by the redirect (search) or by the queued
+     * download job; the 24h default bounds qid table growth while being safely
+     * beyond any download queue delay.
+     */
+    @Value("${qid.batchSearch.maxage:86400000}")
+    private Long batchSearchQidMaxAge;
+
     private final AtomicReference<String> occurrenceETag = new AtomicReference<>(UUID.randomUUID().toString());
 
     private ExecutorService executor;
@@ -1330,7 +1339,7 @@ public class OccurrenceController extends AbstractSecureController {
 
         String q = sb.toString();
         title = title == null ? q : title;
-        String qid = qidCacheDao.put(q, title, null, null, null, -1, null);
+        String qid = qidCacheDao.put(q, title, null, null, null, batchSearchQidMaxAge, null);
         logger.info("batchSearch: qid = " + qid);
 
         return Long.parseLong(qid);
