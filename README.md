@@ -16,11 +16,14 @@ There are currently two supported versions:
 
 ## Development environment Setup
 
-SOLR and Cassandra are required by Biocache servcie.
+SOLR and Cassandra are required by Biocache service.
 
 We can run those two docker instances
 
-or SSH tunnel in our test servers
+or SSH tunnel in our test servers. 
+
+You can find those two server addresses in ansible-inventory
+
 ```
 ssh -L 8983:localhost:8983 aws-solr-test-1.ala
 ssh -L 9042:localhost:9042 aws-cass-test-1.ala
