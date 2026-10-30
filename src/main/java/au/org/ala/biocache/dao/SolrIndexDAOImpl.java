@@ -979,6 +979,25 @@ public class SolrIndexDAOImpl implements IndexDAO {
         return qr;
     }
 
+    /**
+     * return the total number of matching records
+     * @param query
+     * @return
+     */
+    public long getCount(SolrQuery query) {
+        query.setRows(0);
+        query.set("facet", "false");
+        query.set("group", "false");
+        query.set("fl", "id");
+
+        try {
+            QueryResponse response = solrClient.query(query);
+            return response.getResults().getNumFound();
+        } catch (Exception e) {
+            throw new RuntimeException("Error executing count query", e);
+        }
+    }
+
     // read values mapping to csv headers
     private List<Object> getValues(Map<String, Object> map) {
         String userAssertionStatus = (String) map.getOrDefault("userAssertions", String.valueOf(AssertionStatus.QA_NONE));

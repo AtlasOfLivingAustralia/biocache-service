@@ -58,6 +58,7 @@ import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -998,7 +999,7 @@ public class SearchDAOImpl implements SearchDAO {
         if (logger.isDebugEnabled()) {
             logger.debug("Attempting to find the counts for " + queryParams);
         }
-        TaxaRankCountDTO trDTO = null;
+        String selectedFacetField = null;
 
         queryParams.setPageSize(0);
         queryParams.setFacet(true);
@@ -1027,34 +1028,84 @@ public class SearchDAOImpl implements SearchDAO {
                 if ((queryParams.getMax() != null && queryParams.getMax() > 0 && count <= queryParams.getMax()) ||
                         (queryParams.getRank() != null && count > 0)) {
                     solrQuery.addFacetField(r);
+                    selectedFacetField = r;
                     break;
                 }
             }
         } else {
             //the user has supplied the "exact" level at which to perform the breakdown
             solrQuery.addFacetField(queryParams.getLevel());
+            selectedFacetField = queryParams.getLevel();
         }
-        QueryResponse qr = indexDao.runSolrQuery(solrQuery);
 
-        // process results for the 1 facetField requested
-        if (qr.getResults().getNumFound() > 0 && qr.getFacetFields().size() > 0) {
-            FacetField ff = qr.getFacetFields().get(0);
-            trDTO = new TaxaRankCountDTO(ff.getName());
 
+        final String facetField = selectedFacetField;
+        TaxaRankCountDTO trDTO = new TaxaRankCountDTO(facetField != null ? facetField : "");
+        AtomicLong nonEmptyTotal = new AtomicLong(0);
+        if (facetField != null) {
+            final String translatedFacetField = fieldMappingUtil.translateFieldName(facetField);
             List<FieldResultDTO> fDTOs = new ArrayList<FieldResultDTO>();
-            for (Count count : ff.getValues()) {
-                if (count.getCount() > 0) {
-                    FieldResultDTO f = new FieldResultDTO(count.getName(), count.getFacetField().getName() + "." + count.getName(), count.getCount());
-                    fDTOs.add(f);
+
+            indexDao.streamingQuery(solrQuery, null, new ProcessInterface() {
+                @Override
+                public boolean process(org.apache.solr.client.solrj.io.Tuple tuple) {
+                    if (tuple == null || tuple.getMap() == null || tuple.getMap().isEmpty()) {
+                        return true;
+                    }
+
+                    Map tupleMap = tuple.getMap();
+                    Object rawCount = tupleMap.get("count(*)");
+                    if (rawCount == null) {
+                        rawCount = tupleMap.get("count");
+                    }
+
+                    long entryCount = 0L;
+                    if (rawCount instanceof Number) {
+                        entryCount = ((Number) rawCount).longValue();
+                    }
+
+                    if (entryCount <= 0) {
+                        return true;
+                    }
+
+                    Object valueObj = tupleMap.get("name");
+                    if (valueObj == null) {
+                        valueObj = tupleMap.get(facetField);
+                    }
+                    if (valueObj == null) {
+                        valueObj = tupleMap.get(translatedFacetField);
+                    }
+                    if (valueObj == null) {
+                        return true;
+                    }
+
+                    String value = String.valueOf(valueObj);
+                    fDTOs.add(new FieldResultDTO(value, facetField + "." + value, entryCount));
+                    nonEmptyTotal.addAndGet(entryCount);
+                    return true;
                 }
+
+                @Override
+                public boolean flush() {
+                    return true;
+                }
+            }, null);
+
+            // Streaming excludes those records whose field is empty or null
+            // return the total number of matching records
+            long totalCount = indexDao.getCount(solrQuery);
+            long missing = totalCount - nonEmptyTotal.get();
+            if (missing > 0) {
+                FieldResultDTO emptyDto = new FieldResultDTO();
+                emptyDto.setLabel(""); // 空 label
+                emptyDto.setCount(missing);
+                emptyDto.setI18nCode(translatedFacetField + ".null");
+
+                fDTOs.add(emptyDto);
             }
             trDTO.setTaxa(fDTOs);
         }
-        if (trDTO == null && qr.getFacetFields() != null && qr.getFacetFields().size() > 0) {
-            trDTO = new TaxaRankCountDTO(qr.getFacetFields().get(0).getName());
-        } else if (trDTO == null) {
-            trDTO = new TaxaRankCountDTO(""); // empty facet
-        }
+
         return trDTO;
     }
 
