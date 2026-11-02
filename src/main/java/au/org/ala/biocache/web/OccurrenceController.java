@@ -1342,7 +1342,7 @@ public class OccurrenceController extends AbstractSecureController {
     @Operation(summary = "Report the occurrence counts for the supplied list of taxa", tags = "Occurrence")
     @RequestMapping(value = {"/occurrences/taxaCount"},
             method = {RequestMethod.POST, RequestMethod.GET}, produces = MediaType.APPLICATION_JSON_VALUE)
-    public @ResponseBody Map<String, Long> occurrenceSpeciesCounts(
+    public @ResponseBody Map<String, Integer> occurrenceSpeciesCounts(
             @Parameter(description = "taxonConceptIDs, newline separated (by default)") @RequestParam(name = "guids") String listOfGuids,
             @FqField @RequestParam(value = "fq", required = false) String[] filterQueries,
             @RequestParam(defaultValue = "\n") String separator,

@@ -170,7 +170,7 @@ public interface SearchDAO {
      * @return
      * @throws Exception
      */
-    Map<String, Long> getOccurrenceCountsForTaxa(List<String> taxa, String[] filterQueries) throws Exception;
+    Map<String, Integer> getOccurrenceCountsForTaxa(List<String> taxa, String[] filterQueries) throws Exception;
 
     /**
      * Find all species (and counts) for a given query and stream as JSON

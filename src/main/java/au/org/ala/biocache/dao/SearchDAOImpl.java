@@ -1946,7 +1946,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      * @throws Exception
      */
-    public Map<String, Long> getOccurrenceCountsForTaxa(List<String> taxa, String[] filterQueries) throws Exception {
+    public Map<String, Integer> getOccurrenceCountsForTaxa(List<String> taxa, String[] filterQueries) throws Exception {
         SolrQuery solrQuery = new SolrQuery();
         solrQuery.setRows(0);
 
@@ -1999,14 +1999,15 @@ public class SearchDAOImpl implements SearchDAO {
 
         QueryResponse qr = indexDao.runSolrQuery(solrQuery);
         NamedList<Object> facets = (NamedList<Object>) qr.getResponse().get("facets");
-        Map<String, Long> counts = new HashMap<>();
+        Map<String, Integer> counts = new HashMap<>();
 
         for (Map.Entry<String, String> entry : lftToGuid.entrySet()) {
             String facetName = entry.getKey();
             String lsid = entry.getValue();
 
             NamedList<Object> facetData = (NamedList<Object>) facets.get(facetName);
-            Long count = (Long) facetData.get("count");
+            Number countValue = facetData != null ? (Number) facetData.get("count") : null;
+            Integer count = countValue != null ? countValue.intValue() : 0;
 
             counts.put(lsid, count);
         }
