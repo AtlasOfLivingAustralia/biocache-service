@@ -1935,47 +1935,82 @@ public class SearchDAOImpl implements SearchDAO {
      * Retrieves a set of counts for the supplied list of taxa.
      * <p>
      * TODO: searchUtils.getTaxonSearch uses nameUsageMatchService.get(). These requests must be batched.
-     * TODO: deprecate for a standard facet query.
+     *
+     * TODO, after upgraded the facet.query approach into a JSON Facet version - deprecate for a standard facet query,
+     * Solr 8.x / 7.x use different JSON Facet code. Need to use support both versions.
+     * At this stage, our current Solr is 8.x version, but it is a jetty version, only with Solr cores,  but no other modules were installed,
+     * e.g. Facade module, which falls back to Solr Facade 7.x module
      *
      * @param taxa
      * @param filterQueries
      * @return
      * @throws Exception
      */
-    public Map<String, Integer> getOccurrenceCountsForTaxa(List<String> taxa, String[] filterQueries) throws Exception {
+    public Map<String, Long> getOccurrenceCountsForTaxa(List<String> taxa, String[] filterQueries) throws Exception {
         SolrQuery solrQuery = new SolrQuery();
-        emptyFacetRequest(solrQuery, taxa.size(), 0, false);
+        solrQuery.setRows(0);
 
         if (filterQueries != null && filterQueries.length > 0) {
             solrQuery.setFilterQueries(filterQueries);
         }
+
         StringBuilder sb = new StringBuilder();
-        Map<String, Integer> counts = new HashMap<String, Integer>();
-        Map<String, String> lftToGuid = new HashMap<String, String>();
+        Map<String, String> lftToGuid = new HashMap<>();
+
+        // Build JSON facet object
+        StringBuilder jsonFacet = new StringBuilder("{");
+
         for (String lsid : taxa) {
-            //get the lft and rgt value for the taxon
             String[] values = searchUtils.getTaxonSearch(lsid);
-            //first value is the search string
+            String taxonQuery = values[0];
+
+            // Build OR query for main q
             if (sb.length() > 0) {
                 sb.append(" OR ");
             }
-            sb.append(values[0]);
-            lftToGuid.put(values[0], lsid);
-            //add the query part as a facet
-            solrQuery.add("facet.query", values[0]);
+            sb.append(taxonQuery);
+
+            // Map facet name → LSID
+            String facetName = "t_" + lsid.hashCode();
+            lftToGuid.put(facetName, lsid);
+
+
+            // add JSON facet entry (Solr 8.x))
+            // jsonFacet.append("\"").append(facetName).append("\": {\"filter\": \"")
+            //     .append(taxonQuery.replace("\"", "\\\""))
+            //     .append("\"},");
+
+
+            // Add JSON facet entry (Solr 7.x)
+            jsonFacet.append("\"").append(facetName)
+                    .append("\": {\"type\": \"query\", \"q\": \"")
+                    .append(taxonQuery.replace("\"", "\\\""))
+                    .append("\"},");
         }
+
+       // Remove trailing comma
+        if (jsonFacet.charAt(jsonFacet.length() - 1) == ',') {
+            jsonFacet.deleteCharAt(jsonFacet.length() - 1);
+        }
+        jsonFacet.append("}");
+
         solrQuery.setQuery(sb.toString());
+        solrQuery.set("json.facet", jsonFacet.toString());
 
         QueryResponse qr = indexDao.runSolrQuery(solrQuery);
-        Map<String, Integer> facetQueries = qr.getFacetQuery();
-        for (String facet : facetQueries.keySet()) {
-            //add all the counts based on the query value that was substituted
-            String lsid = lftToGuid.get(facet);
-            Integer count = facetQueries.get(facet);
-            if (lsid != null && count != null)
-                counts.put(lsid, count);
+        NamedList<Object> facets = (NamedList<Object>) qr.getResponse().get("facets");
+        Map<String, Long> counts = new HashMap<>();
+
+        for (Map.Entry<String, String> entry : lftToGuid.entrySet()) {
+            String facetName = entry.getKey();
+            String lsid = entry.getValue();
+
+            NamedList<Object> facetData = (NamedList<Object>) facets.get(facetName);
+            Long count = (Long) facetData.get("count");
+
+            counts.put(lsid, count);
         }
-        logger.debug(facetQueries);
+
         return counts;
     }
 

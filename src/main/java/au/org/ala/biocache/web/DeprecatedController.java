@@ -32,7 +32,7 @@ public class DeprecatedController {
     @Operation(tags="Deprecated")
     @RequestMapping(value = {  "/occurrences/taxaCount.json" }, method = {RequestMethod.POST, RequestMethod.GET})
     public @ResponseBody
-    Map<String, Integer> occurrenceSpeciesCounts(
+    Map<String, Long> occurrenceSpeciesCounts(
             @RequestParam(value = "listOfGuids", required = true, defaultValue = "") String listOfGuids,
             @FqField @RequestParam(value = "fq", required = false) String[] filterQueries,
             @RequestParam(defaultValue = "\n") String separator,
