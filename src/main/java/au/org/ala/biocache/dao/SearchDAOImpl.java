@@ -1440,7 +1440,9 @@ public class SearchDAOImpl implements SearchDAO {
                 solrQuery.addFacetPivotField(facet);
             }
 
-            solrQuery.setFacetMinCount(1);
+            Integer fMinCount = searchParams.getFmincount();
+            solrQuery.setFacetMinCount(fMinCount != null && fMinCount >= 1 ? fMinCount : 1);
+
             solrQuery.setFacetLimit(capFlimit(searchParams.getFlimit()));
             solrQuery.setDistrib(solrStreamingFacetDistrib);
 
@@ -1869,7 +1871,6 @@ public class SearchDAOImpl implements SearchDAO {
     private void emptyFacetRequest(SolrQuery solrQuery, int facetLimit, int facetOffset, boolean includeMissing) {
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
-        solrQuery.setFacetMinCount(1);
         solrQuery.setFacetLimit(facetLimit);
         solrQuery.set("facet.offset", facetOffset);
         solrQuery.setFacetMissing(includeMissing);
@@ -2717,7 +2718,10 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
         solrQuery.addFacetField(pointType);
-        solrQuery.setFacetMinCount(1);
+
+        Integer fMinCount = searchParams.getFmincount();
+        solrQuery.setFacetMinCount(fMinCount != null && fMinCount >= 1 ? fMinCount : 1);
+
         solrQuery.setFacetLimit(searchParams.getFlimit());
 
         QueryResponse qr = query(solrQuery); // can throw exception

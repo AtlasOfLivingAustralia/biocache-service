@@ -348,6 +348,35 @@ public class SolrIndexDAOImplIT extends TestCase {
         );
     }
 
+    @Test
+    public void initSolrQueryFacetMinCountDefaultsToOne() throws Exception {
+        SpatialSearchRequestDTO params = new SpatialSearchRequestDTO();
+        params.setQ("*:*");
+        params.setFacet(true);
+        params.setFacets(new String[]{"kingdom"});
+        params.setFmincount(null);
+
+        SolrQuery query = searchDAO.initSolrQuery(params, false, null);
+
+        assertEquals(1, query.getFacetMinCount());
+    }
+
+    @Test
+    public void initSolrQueryFacetMinCountPassThroughAndClamp() throws Exception {
+        SpatialSearchRequestDTO params = new SpatialSearchRequestDTO();
+        params.setQ("*:*");
+        params.setFacet(true);
+        params.setFacets(new String[]{"kingdom"});
+        params.setFmincount(2);
+
+        SolrQuery query = searchDAO.initSolrQuery(params, false, null);
+        assertEquals(2, query.getFacetMinCount());
+
+        params.setFmincount(0);
+        query = searchDAO.initSolrQuery(params, false, null);
+        assertEquals(1, query.getFacetMinCount());
+    }
+
     /**
      * Test if the Solr still support 7.x Facade Query format for getOccurrenceCountsForTaxa() method.
      * At this moment, Solr 8.x is used, but the Solr 8.x Facade module is not installed,
