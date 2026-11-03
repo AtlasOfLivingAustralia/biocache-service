@@ -210,6 +210,9 @@ public class SearchDAOImpl implements SearchDAO {
     @Value("${solr.downloadquery.busywaitsleep:100}")
     protected Long downloadCheckBusyWaitSleep = 100L;
 
+    @Value("${solr.streaming.facet.distrib:true}")
+    protected Boolean solrStreamingFacetDistrib = true;
+
     /**
      * Occurrence count where < uses pivot and > uses facet for retrieving points. Can be fine tuned with
      * multiple queries and comparing DEBUG *
@@ -1006,7 +1009,7 @@ public class SearchDAOImpl implements SearchDAO {
         queryParams.setFsort("count");
         queryParams.setFlimit(-1);
         SolrQuery solrQuery = initSolrQuery(queryParams, false, null);
-        solrQuery.setFacetMissing(false);   // do not return missing facet
+        solrQuery.setFacetMissing(false);// do not return missing facet
 
         //add the rank:name as a fq if necessary
         if (StringUtils.isNotEmpty(queryParams.getName()) && StringUtils.isNotEmpty(queryParams.getRank())) {
@@ -1042,6 +1045,7 @@ public class SearchDAOImpl implements SearchDAO {
         final String facetField = selectedFacetField;
         TaxaRankCountDTO trDTO = new TaxaRankCountDTO(facetField != null ? facetField : "");
         AtomicLong nonEmptyTotal = new AtomicLong(0);
+
         if (facetField != null) {
             final String translatedFacetField = fieldMappingUtil.translateFieldName(facetField);
             List<FieldResultDTO> fDTOs = new ArrayList<FieldResultDTO>();
@@ -1438,6 +1442,8 @@ public class SearchDAOImpl implements SearchDAO {
 
             solrQuery.setFacetMinCount(1);
             solrQuery.setFacetLimit(capFlimit(searchParams.getFlimit()));
+            solrQuery.setDistrib(solrStreamingFacetDistrib);
+
             // include this so that the default fsort is still obeyed.
             String fsort = StringUtils.isEmpty(searchParams.getFsort()) ? "count" : searchParams.getFsort();
             solrQuery.setFacetSort(fsort);
@@ -1518,6 +1524,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      * @throws Exception
      */
+    @Deprecated
     public Map<String, Integer> getSourcesForQuery(SpatialSearchRequestDTO searchParams) throws Exception {
 
         Map<String, Integer> uidStats = new HashMap<String, Integer>();
@@ -1996,6 +2003,7 @@ public class SearchDAOImpl implements SearchDAO {
 
         solrQuery.setQuery(sb.toString());
         solrQuery.set("json.facet", jsonFacet.toString());
+        solrQuery.setDistrib(solrStreamingFacetDistrib);
 
         QueryResponse qr = indexDao.runSolrQuery(solrQuery);
         NamedList<Object> facets = (NamedList<Object>) qr.getResponse().get("facets");
