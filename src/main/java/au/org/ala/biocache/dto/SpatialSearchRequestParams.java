@@ -69,6 +69,9 @@ public class SpatialSearchRequestParams {
     @Parameter(name="fcontains", description = "Limits facet values to those containing this substring")
     protected String fcontains ="";
 
+    @Parameter(name="fmincount", description = "Minimum count for facet values. Values less than 1 are treated as 1")
+    protected Integer fmincount = 1;
+
     @Parameter(name="start", description = "Paging start index")
     protected Integer start;
 

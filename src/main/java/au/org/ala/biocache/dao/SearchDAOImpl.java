@@ -58,6 +58,7 @@ import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -208,6 +209,9 @@ public class SearchDAOImpl implements SearchDAO {
      */
     @Value("${solr.downloadquery.busywaitsleep:100}")
     protected Long downloadCheckBusyWaitSleep = 100L;
+
+    @Value("${solr.streaming.facet.distrib:true}")
+    protected Boolean solrStreamingFacetDistrib = true;
 
     /**
      * Occurrence count where < uses pivot and > uses facet for retrieving points. Can be fine tuned with
@@ -998,14 +1002,14 @@ public class SearchDAOImpl implements SearchDAO {
         if (logger.isDebugEnabled()) {
             logger.debug("Attempting to find the counts for " + queryParams);
         }
-        TaxaRankCountDTO trDTO = null;
+        String selectedFacetField = null;
 
         queryParams.setPageSize(0);
         queryParams.setFacet(true);
         queryParams.setFsort("count");
         queryParams.setFlimit(-1);
         SolrQuery solrQuery = initSolrQuery(queryParams, false, null);
-        solrQuery.setFacetMissing(false);   // do not return missing facet
+        solrQuery.setFacetMissing(false);// do not return missing facet
 
         //add the rank:name as a fq if necessary
         if (StringUtils.isNotEmpty(queryParams.getName()) && StringUtils.isNotEmpty(queryParams.getRank())) {
@@ -1027,34 +1031,85 @@ public class SearchDAOImpl implements SearchDAO {
                 if ((queryParams.getMax() != null && queryParams.getMax() > 0 && count <= queryParams.getMax()) ||
                         (queryParams.getRank() != null && count > 0)) {
                     solrQuery.addFacetField(r);
+                    selectedFacetField = r;
                     break;
                 }
             }
         } else {
             //the user has supplied the "exact" level at which to perform the breakdown
             solrQuery.addFacetField(queryParams.getLevel());
+            selectedFacetField = queryParams.getLevel();
         }
-        QueryResponse qr = indexDao.runSolrQuery(solrQuery);
 
-        // process results for the 1 facetField requested
-        if (qr.getResults().getNumFound() > 0 && qr.getFacetFields().size() > 0) {
-            FacetField ff = qr.getFacetFields().get(0);
-            trDTO = new TaxaRankCountDTO(ff.getName());
 
+        final String facetField = selectedFacetField;
+        TaxaRankCountDTO trDTO = new TaxaRankCountDTO(facetField != null ? facetField : "");
+        AtomicLong nonEmptyTotal = new AtomicLong(0);
+
+        if (facetField != null) {
+            final String translatedFacetField = fieldMappingUtil.translateFieldName(facetField);
             List<FieldResultDTO> fDTOs = new ArrayList<FieldResultDTO>();
-            for (Count count : ff.getValues()) {
-                if (count.getCount() > 0) {
-                    FieldResultDTO f = new FieldResultDTO(count.getName(), count.getFacetField().getName() + "." + count.getName(), count.getCount());
-                    fDTOs.add(f);
+
+            indexDao.streamingQuery(solrQuery, null, new ProcessInterface() {
+                @Override
+                public boolean process(org.apache.solr.client.solrj.io.Tuple tuple) {
+                    if (tuple == null || tuple.getMap() == null || tuple.getMap().isEmpty()) {
+                        return true;
+                    }
+
+                    Map tupleMap = tuple.getMap();
+                    Object rawCount = tupleMap.get("count(*)");
+                    if (rawCount == null) {
+                        rawCount = tupleMap.get("count");
+                    }
+
+                    long entryCount = 0L;
+                    if (rawCount instanceof Number) {
+                        entryCount = ((Number) rawCount).longValue();
+                    }
+
+                    if (entryCount <= 0) {
+                        return true;
+                    }
+
+                    Object valueObj = tupleMap.get("name");
+                    if (valueObj == null) {
+                        valueObj = tupleMap.get(facetField);
+                    }
+                    if (valueObj == null) {
+                        valueObj = tupleMap.get(translatedFacetField);
+                    }
+                    if (valueObj == null) {
+                        return true;
+                    }
+
+                    String value = String.valueOf(valueObj);
+                    fDTOs.add(new FieldResultDTO(value, facetField + "." + value, entryCount));
+                    nonEmptyTotal.addAndGet(entryCount);
+                    return true;
                 }
+
+                @Override
+                public boolean flush() {
+                    return true;
+                }
+            }, null);
+
+            // Streaming excludes those records whose field is empty or null
+            // return the total number of matching records
+            long totalCount = indexDao.getCount(solrQuery);
+            long missing = totalCount - nonEmptyTotal.get();
+            if (missing > 0) {
+                FieldResultDTO emptyDto = new FieldResultDTO();
+                emptyDto.setLabel(""); // 空 label
+                emptyDto.setCount(missing);
+                emptyDto.setI18nCode(translatedFacetField + ".null");
+
+                fDTOs.add(emptyDto);
             }
             trDTO.setTaxa(fDTOs);
         }
-        if (trDTO == null && qr.getFacetFields() != null && qr.getFacetFields().size() > 0) {
-            trDTO = new TaxaRankCountDTO(qr.getFacetFields().get(0).getName());
-        } else if (trDTO == null) {
-            trDTO = new TaxaRankCountDTO(""); // empty facet
-        }
+
         return trDTO;
     }
 
@@ -1385,8 +1440,12 @@ public class SearchDAOImpl implements SearchDAO {
                 solrQuery.addFacetPivotField(facet);
             }
 
-            solrQuery.setFacetMinCount(1);
+            Integer fMinCount = searchParams.getFmincount();
+            solrQuery.setFacetMinCount(fMinCount != null && fMinCount >= 1 ? fMinCount : 1);
+
             solrQuery.setFacetLimit(capFlimit(searchParams.getFlimit()));
+            solrQuery.setDistrib(solrStreamingFacetDistrib);
+
             // include this so that the default fsort is still obeyed.
             String fsort = StringUtils.isEmpty(searchParams.getFsort()) ? "count" : searchParams.getFsort();
             solrQuery.setFacetSort(fsort);
@@ -1467,6 +1526,7 @@ public class SearchDAOImpl implements SearchDAO {
      * @return
      * @throws Exception
      */
+    @Deprecated
     public Map<String, Integer> getSourcesForQuery(SpatialSearchRequestDTO searchParams) throws Exception {
 
         Map<String, Integer> uidStats = new HashMap<String, Integer>();
@@ -1811,7 +1871,6 @@ public class SearchDAOImpl implements SearchDAO {
     private void emptyFacetRequest(SolrQuery solrQuery, int facetLimit, int facetOffset, boolean includeMissing) {
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
-        solrQuery.setFacetMinCount(1);
         solrQuery.setFacetLimit(facetLimit);
         solrQuery.set("facet.offset", facetOffset);
         solrQuery.setFacetMissing(includeMissing);
@@ -1884,7 +1943,11 @@ public class SearchDAOImpl implements SearchDAO {
      * Retrieves a set of counts for the supplied list of taxa.
      * <p>
      * TODO: searchUtils.getTaxonSearch uses nameUsageMatchService.get(). These requests must be batched.
-     * TODO: deprecate for a standard facet query.
+     *
+     * TODO, after upgraded the facet.query approach into a JSON Facet version - deprecate for a standard facet query,
+     * Solr 8.x / 7.x use different JSON Facet code. Need to use support both versions.
+     * At this stage, our current Solr is 8.x version, but it is a jetty version, only with Solr cores,  but no other modules were installed,
+     * e.g. Facade module, which falls back to Solr Facade 7.x module
      *
      * @param taxa
      * @param filterQueries
@@ -1893,38 +1956,71 @@ public class SearchDAOImpl implements SearchDAO {
      */
     public Map<String, Integer> getOccurrenceCountsForTaxa(List<String> taxa, String[] filterQueries) throws Exception {
         SolrQuery solrQuery = new SolrQuery();
-        emptyFacetRequest(solrQuery, taxa.size(), 0, false);
+        solrQuery.setRows(0);
 
         if (filterQueries != null && filterQueries.length > 0) {
             solrQuery.setFilterQueries(filterQueries);
         }
+
         StringBuilder sb = new StringBuilder();
-        Map<String, Integer> counts = new HashMap<String, Integer>();
-        Map<String, String> lftToGuid = new HashMap<String, String>();
+        Map<String, String> lftToGuid = new HashMap<>();
+
+        // Build JSON facet object
+        StringBuilder jsonFacet = new StringBuilder("{");
+
         for (String lsid : taxa) {
-            //get the lft and rgt value for the taxon
             String[] values = searchUtils.getTaxonSearch(lsid);
-            //first value is the search string
+            String taxonQuery = values[0];
+
+            // Build OR query for main q
             if (sb.length() > 0) {
                 sb.append(" OR ");
             }
-            sb.append(values[0]);
-            lftToGuid.put(values[0], lsid);
-            //add the query part as a facet
-            solrQuery.add("facet.query", values[0]);
+            sb.append(taxonQuery);
+
+            // Map facet name → LSID
+            String facetName = "t_" + lsid.hashCode();
+            lftToGuid.put(facetName, lsid);
+
+
+            // add JSON facet entry (Solr 8.x))
+            // jsonFacet.append("\"").append(facetName).append("\": {\"filter\": \"")
+            //     .append(taxonQuery.replace("\"", "\\\""))
+            //     .append("\"},");
+
+
+            // Add JSON facet entry (Solr 7.x)
+            jsonFacet.append("\"").append(facetName)
+                    .append("\": {\"type\": \"query\", \"q\": \"")
+                    .append(taxonQuery.replace("\"", "\\\""))
+                    .append("\"},");
         }
+
+       // Remove trailing comma
+        if (jsonFacet.charAt(jsonFacet.length() - 1) == ',') {
+            jsonFacet.deleteCharAt(jsonFacet.length() - 1);
+        }
+        jsonFacet.append("}");
+
         solrQuery.setQuery(sb.toString());
+        solrQuery.set("json.facet", jsonFacet.toString());
+        solrQuery.setDistrib(solrStreamingFacetDistrib);
 
         QueryResponse qr = indexDao.runSolrQuery(solrQuery);
-        Map<String, Integer> facetQueries = qr.getFacetQuery();
-        for (String facet : facetQueries.keySet()) {
-            //add all the counts based on the query value that was substituted
-            String lsid = lftToGuid.get(facet);
-            Integer count = facetQueries.get(facet);
-            if (lsid != null && count != null)
-                counts.put(lsid, count);
+        NamedList<Object> facets = (NamedList<Object>) qr.getResponse().get("facets");
+        Map<String, Integer> counts = new HashMap<>();
+
+        for (Map.Entry<String, String> entry : lftToGuid.entrySet()) {
+            String facetName = entry.getKey();
+            String lsid = entry.getValue();
+
+            NamedList<Object> facetData = (NamedList<Object>) facets.get(facetName);
+            Number countValue = facetData != null ? (Number) facetData.get("count") : null;
+            Integer count = countValue != null ? countValue.intValue() : 0;
+
+            counts.put(lsid, count);
         }
-        logger.debug(facetQueries);
+
         return counts;
     }
 
@@ -2622,7 +2718,10 @@ public class SearchDAOImpl implements SearchDAO {
         solrQuery.setRows(0);
         solrQuery.setFacet(true);
         solrQuery.addFacetField(pointType);
-        solrQuery.setFacetMinCount(1);
+
+        Integer fMinCount = searchParams.getFmincount();
+        solrQuery.setFacetMinCount(fMinCount != null && fMinCount >= 1 ? fMinCount : 1);
+
         solrQuery.setFacetLimit(searchParams.getFlimit());
 
         QueryResponse qr = query(solrQuery); // can throw exception
