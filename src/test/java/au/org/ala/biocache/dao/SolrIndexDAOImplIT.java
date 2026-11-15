@@ -26,6 +26,7 @@ import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -345,6 +346,60 @@ public class SolrIndexDAOImplIT extends TestCase {
                 "Unfiltered facet results (" + unfilteredCount + ") should be greater than filtered results (" + filteredCount + ")",
                 unfilteredCount > filteredCount
         );
+    }
+
+    @Test
+    public void initSolrQueryFacetMinCountDefaultsToOne() throws Exception {
+        SpatialSearchRequestDTO params = new SpatialSearchRequestDTO();
+        params.setQ("*:*");
+        params.setFacet(true);
+        params.setFacets(new String[]{"kingdom"});
+        params.setFmincount(null);
+
+        SolrQuery query = searchDAO.initSolrQuery(params, false, null);
+
+        assertEquals(1, query.getFacetMinCount());
+    }
+
+    @Test
+    public void initSolrQueryFacetMinCountPassThroughAndClamp() throws Exception {
+        SpatialSearchRequestDTO params = new SpatialSearchRequestDTO();
+        params.setQ("*:*");
+        params.setFacet(true);
+        params.setFacets(new String[]{"kingdom"});
+        params.setFmincount(2);
+
+        SolrQuery query = searchDAO.initSolrQuery(params, false, null);
+        assertEquals(2, query.getFacetMinCount());
+
+        params.setFmincount(0);
+        query = searchDAO.initSolrQuery(params, false, null);
+        assertEquals(1, query.getFacetMinCount());
+    }
+
+    /**
+     * Test if the Solr still support 7.x Facade Query format for getOccurrenceCountsForTaxa() method.
+     * At this moment, Solr 8.x is used, but the Solr 8.x Facade module is not installed,
+     * so it falls back to the 7.x Facade Query format.
+     *
+     *
+     */
+    @Test
+    public void getOccurrenceCountsForTaxaSupportsJsonFacetFormat() throws Exception {
+        String taxonLsid = "urn:lsid:biodiversity.org.au:afd.taxon:75801261-975f-436f-b1c7-d395a06dc067";
+        try {
+            Map<String, Integer> counts = searchDAO.getOccurrenceCountsForTaxa(
+                    Arrays.asList(taxonLsid),
+                    new String[]{"kingdom:Animalia"}
+            );
+
+            assertNotNull("Counts map should not be null", counts);
+            assertTrue("Counts should include the requested LSID", counts.containsKey(taxonLsid));
+            assertNotNull("Count for requested LSID should not be null", counts.get(taxonLsid));
+            assertTrue("Count should be non-negative", counts.get(taxonLsid) >= 0);
+        } catch (Exception e) {
+            fail("Hint: First check if Solr is still running in Solr 7.x facet mode (no 8.x facet module loaded)." + e.getMessage());
+        }
     }
 
     @Test

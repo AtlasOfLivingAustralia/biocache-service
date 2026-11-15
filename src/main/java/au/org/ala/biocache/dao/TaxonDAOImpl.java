@@ -18,13 +18,14 @@ import au.com.bytecode.opencsv.CSVReader;
 import au.org.ala.biocache.dto.FieldResultDTO;
 import au.org.ala.biocache.dto.OccurrenceIndex;
 import au.org.ala.biocache.dto.SpatialSearchRequestDTO;
+import au.org.ala.biocache.stream.ProcessInterface;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrQuery;
+import org.apache.solr.client.solrj.io.Tuple;
 import org.apache.solr.client.solrj.response.FacetField;
-import org.apache.solr.client.solrj.response.QueryResponse;
 import org.springframework.stereotype.Component;
 
 import javax.inject.Inject;
@@ -169,7 +170,6 @@ public class TaxonDAOImpl implements TaxonDAO {
     private List<FacetField.Count> extractFacet(String queryString, String[] filterQueries, String facetName) throws Exception {
 
         // TODO: PIPELINES: query mapping needs to be performed!!!
-
         SolrQuery query = new SolrQuery(queryString);
         query.setFacet(true);
         query.addFacetField(facetName);
@@ -182,8 +182,32 @@ public class TaxonDAOImpl implements TaxonDAO {
         if(filterQueries != null){
             for(String fq: filterQueries) query.addFilterQuery(fq);
         }
-        QueryResponse response = indexDAO.query(query);
-        List<FacetField.Count> fc = response.getFacetField(facetName).getValues();
+        FacetField facetField = new FacetField(facetName);
+        indexDAO.streamingQuery(query, null, new ProcessInterface() {
+            @Override
+            public boolean process(Tuple tuple) {
+                String name = null;
+                long count = 0L;
+                for (Object value : tuple.getMap().values()) {
+                    if (value instanceof String) {
+                        name = (String) value;
+                    } else if (value instanceof Number) {
+                        count = ((Number) value).longValue();
+                    }
+                }
+                if (name != null) {
+                    facetField.add(name, count);
+                }
+                return true;
+            }
+
+            @Override
+            public boolean flush() {
+                return true;
+            }
+        }, null);
+
+        List<FacetField.Count> fc = facetField.getValues();
         if(fc == null){
             fc = new ArrayList<FacetField.Count>();
         }
