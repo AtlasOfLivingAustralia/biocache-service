@@ -266,7 +266,7 @@ public class AssertionServiceTest {
     }
 
     @Test
-    public void testAddAssertion_existing_1_assertion_1_verification_add_1_verification_overwrite() throws Exception {
+    public void testAddAssertion_existing_1_assertion_1_verification_add_1_verification_keep_history() throws Exception {
         // test when record is found
         SolrDocument sd = new SolrDocument();
         when(searchDao.getOcc(Mockito.any())).thenReturn(sd);
@@ -285,12 +285,14 @@ public class AssertionServiceTest {
         // verify combined assertions
         Mockito.verify(store).put(myUuid.capture(), myUserAssertions.capture());
         UserAssertions assertions = myUserAssertions.getValue();
-        assert(assertions.size() == 2);
+        assert(assertions.size() == 3);
 
-        assertions.sort(Comparator.comparing(QualityAssertion::getCode));
-        assert(assertions.get(0).getCode() == 0);
-        assert(assertions.get(1).getCode() == 50000);
-        assert(assertions.get(1).getQaStatus() == 50002);
+        List<QualityAssertion> verifications = assertions.stream()
+                .filter(a -> a.getCode() == 50000)
+                .collect(Collectors.toList());
+        assert(verifications.size() == 2);
+        assert(verifications.stream().anyMatch(v -> v.getQaStatus() == 50001));
+        assert(verifications.stream().anyMatch(v -> v.getQaStatus() == 50002));
 
         // verify indexmap
         Mockito.verify(indexDAO).indexFromMap(myIndexMaps.capture());
@@ -300,6 +302,24 @@ public class AssertionServiceTest {
         Set<String> userIds = new HashSet<>((List<String>)indexMap.get("assertionUserId"));
         assert(userIds.size() == 1);
         assert(userIds.contains("userId"));
+    }
+
+    @Test
+    public void testAddAssertion_existing_open_issue_add_corrected_uses_latest_status_per_related_uuid() throws Exception {
+        SolrDocument sd = new SolrDocument();
+        when(searchDao.getOcc(Mockito.any())).thenReturn(sd);
+        UserAssertions existingAssertions = getMockAssertions(1, 1);
+        when(store.get(Mockito.any(), Mockito.any())).thenReturn(Optional.of(existingAssertions));
+
+        ArgumentCaptor<List<Map<String, Object>>> myIndexMaps = ArgumentCaptor.forClass(List.class);
+
+        Optional<QualityAssertion> qualityAssertion = assertionService.addAssertion("recordUuid", "50000",
+                "comment_verification", "userId", "userDisplayName", "50003", existingAssertions.get(0).getUuid(), "", "");
+        assert(qualityAssertion.isPresent());
+
+        Mockito.verify(indexDAO).indexFromMap(myIndexMaps.capture());
+        Map<String, Object> indexMap = myIndexMaps.getValue().get(0);
+        assert(indexMap.get("userAssertions").equals("50003"));
     }
 
     @Test

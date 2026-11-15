@@ -193,19 +193,15 @@ public class AssertionService {
 
     // this method merge new assertions with existing assertions
     // 1. for each type of normal assertion, 1 user can only have 1 on a record.
-    //    so if user already created a 'Geospatial issue' assertion and he now creates a new one, new one will overwrite old one
+    //    so if a user already created a 'Geospatial issue' assertion and he now creates a new one, new one will overwrite old one
     //    normal assertion is unique by recordId + userId + code
-    // 2. for verified assertion (whose code == 50000), it's uniquely related to an assertion.
-    //    so if there's already a verification for an assertion, a newly created verification on same assertion will overwrite existing one
-    //    verification is unique per assertion
+    //
+    // 2. Historically, for verified assertion (whose code == 50000), it is uniquely related to an assertion.
+    //    After version 3.10.0, for verified assertion (whose code == 50000), an assertion can have multiple verifications.
     private UserAssertions getCombinedAssertions(UserAssertions existingAssertions, UserAssertions newAssertions) {
         // un-verified assertions grouped by recordId + code + userId
         Map<Integer, QualityAssertion> existingAssertionsMap =
                 existingAssertions.stream().filter(qa -> !qa.getCode().equals(AssertionCodes.VERIFIED.getCode())).collect(Collectors.toMap(qa -> Objects.hash(qa.getReferenceRowKey(), qa.getCode(), qa.getUserId()), qa -> qa));
-
-        // verifications grouped by related uuid
-        Map<String, QualityAssertion> existingVerificationMap =
-                existingAssertions.stream().filter(qa -> qa.getCode().equals(AssertionCodes.VERIFIED.getCode())).collect(Collectors.toMap(QualityAssertion::getRelatedUuid, qa -> qa));
 
         UserAssertions combined = new UserAssertions();
 
@@ -226,22 +222,15 @@ public class AssertionService {
                 existingAssertionsMap.put(hash, qa);
             }
         }
-
         // for those new assertions with duplicate keys
         combined.addAll(existingAssertionsMap.values());
 
-        for (QualityAssertion verification : newVerificationList) {
-            String relatedUuid = verification.getRelatedUuid();
-            if (!existingVerificationMap.containsKey(relatedUuid)) {
-                // for those verifications on new assertions
-                combined.add(verification);
-            } else {
-                existingVerificationMap.put(relatedUuid, verification);
-            }
-        }
+        // processing new verifications - will not overwrite existing verifications, just add to the list
+        List<QualityAssertion> existingVerifications =
+                existingAssertions.stream().filter(qa -> qa.getCode().equals(AssertionCodes.VERIFIED.getCode())).collect(Collectors.toList());
 
-        // for those verifications overwriting previous ones
-        combined.addAll(existingVerificationMap.values());
+        combined.addAll(existingVerifications);
+        combined.addAll(newVerificationList);
 
         return combined;
     }
@@ -282,8 +271,11 @@ public class AssertionService {
         List<QualityAssertion> verifications =
                 userAssertions.stream().filter(qa -> qa.getCode().equals(AssertionCodes.VERIFIED.getCode())).collect(Collectors.toList());
 
+        // Preserve full history in storage, but derive current verification state per assertion.
+        List<QualityAssertion> latestVerifications = getLatestVerificationsByRelatedUuid(verifications);
+
         List<String> assertionIds = assertions.stream().map(QualityAssertion::getUuid).collect(Collectors.toList());
-        List<String> verifiedIds = verifications.stream().map(QualityAssertion::getRelatedUuid).collect(Collectors.toList());
+        List<String> verifiedIds = latestVerifications.stream().map(QualityAssertion::getRelatedUuid).collect(Collectors.toList());
 
         // only those not yet verified left
         assertionIds.removeAll(verifiedIds);
@@ -291,12 +283,12 @@ public class AssertionService {
         // if there's user assertion not yet verified
         if (!assertionIds.isEmpty()) {
             assertionStatus = AssertionStatus.QA_UNCONFIRMED;
-        } else if (!verifications.isEmpty()) { // all verified
-            if (verifications.stream().anyMatch(qa -> qa.getQaStatus().equals(AssertionStatus.QA_OPEN_ISSUE))) {
+        } else if (!latestVerifications.isEmpty()) { // all verified
+            if (latestVerifications.stream().anyMatch(qa -> qa.getQaStatus().equals(AssertionStatus.QA_OPEN_ISSUE))) {
                 assertionStatus = AssertionStatus.QA_OPEN_ISSUE;
             } else {
                 List<QualityAssertion> verificationsWithValidDate =
-                        verifications.stream().filter(qa -> validDate(qa.getCreated())).collect(Collectors.toList());
+                        latestVerifications.stream().filter(qa -> validDate(qa.getCreated())).collect(Collectors.toList());
                 if (!verificationsWithValidDate.isEmpty()) {
                     // sort by datetime DESC
                     verificationsWithValidDate.sort((qa1, qa2) -> {
@@ -313,7 +305,7 @@ public class AssertionService {
                     assertionStatus = verificationsWithValidDate.get(0).getQaStatus();
                 } else {
                     // assertions have no date, just pick one
-                    assertionStatus = verifications.get(0).getQaStatus();
+                    assertionStatus = latestVerifications.get(0).getQaStatus();
                 }
             }
         }
@@ -402,6 +394,46 @@ public class AssertionService {
         } catch (ParseException e) {
            return false;
         }
+    }
+
+    private List<QualityAssertion> getLatestVerificationsByRelatedUuid(List<QualityAssertion> verifications) {
+        Map<String, QualityAssertion> latestByRelatedUuid = new HashMap<>();
+        for (QualityAssertion verification : verifications) {
+            String relatedUuid = StringUtils.isNotBlank(verification.getRelatedUuid())
+                    ? verification.getRelatedUuid()
+                    : verification.getUuid();
+
+            QualityAssertion existing = latestByRelatedUuid.get(relatedUuid);
+            if (existing == null || isNewerVerification(verification, existing)) {
+                latestByRelatedUuid.put(relatedUuid, verification);
+            }
+        }
+        return new ArrayList<>(latestByRelatedUuid.values());
+    }
+
+    private boolean isNewerVerification(QualityAssertion candidate, QualityAssertion existing) {
+        boolean candidateHasValidDate = validDate(candidate.getCreated());
+        boolean existingHasValidDate = validDate(existing.getCreated());
+
+        if (candidateHasValidDate && existingHasValidDate) {
+            try {
+                Date candidateDate = simpleDateFormat.parse(candidate.getCreated());
+                Date existingDate = simpleDateFormat.parse(existing.getCreated());
+                return !candidateDate.before(existingDate);
+            } catch (ParseException e) {
+                // Falls through to stable preference below.
+            }
+        }
+
+        if (candidateHasValidDate && !existingHasValidDate) {
+            return true;
+        }
+        if (!candidateHasValidDate && existingHasValidDate) {
+            return false;
+        }
+
+        // If both dates are missing/invalid, prefer later entry from list order.
+        return true;
     }
 
     private boolean isValidUUID(String uuid) {

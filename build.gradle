@@ -248,6 +248,7 @@ processResources {
 
 dockerCompose {
     useComposeFiles.add("src/test/resources/docker-compose.yaml")
+    projectName = "biocache_service"
     isRequiredBy(tasks.test)
 }
 
