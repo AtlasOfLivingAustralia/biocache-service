@@ -206,30 +206,34 @@ public class QidCacheDAOImpl implements QidCacheDAO {
      */
     public Qid get(String key) throws QidMissingException {
         Qid obj = cache.get(key);
+        boolean fromDb = false;
 
         if (obj == null) {
             obj = load(key);
+            fromDb = obj != null;
+        }
 
-            if (obj != null) {
-                // Remove formatted q/fq when loading from database so that the query is formatted at least once.
-                // This is required to handle stored queries that do not reflect the current legacy field handling.
-                // e.g. queries that contained `lsid:`
-                obj.setDisplayString(null);
+        if (obj == null || isExpired(key, obj.getMaxAge(), System.currentTimeMillis())) {
+            //expired or missing: drop any stale in-memory copy
+            cache.remove(key);
+            throw new QidMissingException(key);
+        }
 
-                cache.put(key, obj);
+        if (fromDb) {
+            // Remove formatted q/fq when loading from database so that the query is formatted at least once.
+            // This is required to handle stored queries that do not reflect the current legacy field handling.
+            // e.g. queries that contained `lsid:`
+            obj.setDisplayString(null);
 
-                // remove SOLR escaping of older qid
-                if (obj.getQ() != null && obj.getQ().indexOf('\\') >= 0) {
-                    obj.setQ(removeSolrEscaping(obj.getQ()));
-                }
+            cache.put(key, obj);
+
+            // remove SOLR escaping of older qid
+            if (obj.getQ() != null && obj.getQ().indexOf('\\') >= 0) {
+                obj.setQ(removeSolrEscaping(obj.getQ()));
             }
         }
 
-        if (obj == null) {
-            throw new QidMissingException(key);
-        } else {
-            obj.setLastUse(System.currentTimeMillis());
-        }
+        obj.setLastUse(System.currentTimeMillis());
 
         return obj;
     }
@@ -308,9 +312,37 @@ public class QidCacheDAOImpl implements QidCacheDAO {
     void save(Qid value) {
         value.setRowKey(String.valueOf(nextId()));
         try {
-            storeDao.put(value.getRowKey(), value);
+            storeDao.put(value.getRowKey(), value, ttlSeconds(value.getMaxAge()));
         } catch (Exception e) {
             logger.error("faild to save qid to db", e);
+        }
+    }
+
+    /**
+     * Convert a maxAge in milliseconds into a cassandra row TTL in seconds.
+     * Null or non-positive maxAge means the qid never expires.
+     */
+    static Integer ttlSeconds(Long maxAgeMs) {
+        if (maxAgeMs == null || maxAgeMs <= 0) {
+            return null;
+        }
+        long ms = Math.min(maxAgeMs, (long) Integer.MAX_VALUE * 1000);
+        return (int) ((ms + 999) / 1000);
+    }
+
+    /**
+     * A qid expires maxAge milliseconds after it was created. The creation
+     * time is the rowKey, which is an epoch millisecond timestamp.
+     * maxAge null or <= 0 means the qid never expires.
+     */
+    static boolean isExpired(String key, Long maxAge, long now) {
+        if (maxAge == null || maxAge <= 0) {
+            return false;
+        }
+        try {
+            return Long.parseLong(key) + maxAge < now;
+        } catch (NumberFormatException e) {
+            return false;
         }
     }
 

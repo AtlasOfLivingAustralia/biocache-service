@@ -195,6 +195,11 @@ public class CassandraStoreDAOImpl implements StoreDAO {
 
     @Override
     public <T> void put(String key, T data) throws IOException {
+        put(key, data, null);
+    }
+
+    @Override
+    public <T> void put(String key, T data, Integer ttlSeconds) throws IOException {
         JsonConfig jsonConfig = new JsonConfig();
         // don't save null fields
         jsonConfig.setJsonPropertyFilter((Object source, String name, Object val) -> val == null);
@@ -208,7 +213,7 @@ public class CassandraStoreDAOImpl implements StoreDAO {
 
         String className = data.getClass().getSimpleName();
         try {
-            BoundStatement boundStatement = createPutStatement(key, className, value);
+            BoundStatement boundStatement = createPutStatement(key, className, value, ttlSeconds);
             session.execute(boundStatement);
         } catch (Exception e) {
             logger.error(
@@ -270,15 +275,17 @@ public class CassandraStoreDAOImpl implements StoreDAO {
         return result;
     }
 
-    private BoundStatement createPutStatement(String key, String table, String value) {
-        String cql = "INSERT INTO " + table + " (key,value) VALUES (?,?);";
+    private BoundStatement createPutStatement(String key, String table, String value, Integer ttlSeconds) {
+        String cql = ttlSeconds == null
+                ? "INSERT INTO " + table + " (key,value) VALUES (?,?);"
+                : "INSERT INTO " + table + " (key,value) VALUES (?,?) USING TTL ?;";
 
         PreparedStatement statement = getPreparedStmt(cql, table);
 
-        BoundStatement boundStatement = statement.bind(key, value);
-
         statement.setIdempotent(true); // this will allow retries
 
-        return boundStatement;
+        return ttlSeconds == null
+                ? statement.bind(key, value)
+                : statement.bind(key, value, ttlSeconds);
     }
 }

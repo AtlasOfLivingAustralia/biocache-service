@@ -28,6 +28,7 @@ import com.google.common.base.Strings;
 import io.swagger.annotations.*;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.apache.commons.io.IOUtils;
@@ -244,6 +245,7 @@ public class WMSController extends AbstractSecureController {
     public void storeParams(@ParameterObject SpatialSearchRequestParams params,
                             @RequestParam(value = "bbox", required = false, defaultValue = "false") String bbox,
                             @RequestParam(value = "title", required = false) String title,
+                            @Parameter(description = "Lifetime of the QID in milliseconds. After expiry the QID is deleted and requests using it fail with HTTP 400. -1 (default) = never expires.", example = "-1")
                             @RequestParam(value = "maxage", required = false, defaultValue = "-1") Long maxage,
                             @RequestParam(value = "source", required = false) String source,
                             HttpServletResponse response) throws Exception {
